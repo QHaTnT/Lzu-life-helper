@@ -39,6 +39,7 @@ def serialize_user_brief(user: User) -> dict:
         "username": user.username,
         "real_name": user.real_name,
         "avatar": user.avatar or "",
+        "phone": user.phone or "",
     }
 
 

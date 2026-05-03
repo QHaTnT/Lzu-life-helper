@@ -162,32 +162,14 @@
       </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
-      <div class="container mx-auto flex justify-around py-3">
-        <router-link to="/home" class="flex flex-col items-center text-gray-500">
-          <span class="text-2xl">🏠</span>
-          <span class="text-xs mt-1">首页</span>
-        </router-link>
-        <router-link to="/market" class="flex flex-col items-center text-lzu-blue">
-          <span class="text-2xl">🛒</span>
-          <span class="text-xs mt-1">二手</span>
-        </router-link>
-        <router-link to="/community" class="flex flex-col items-center text-gray-500">
-          <span class="text-2xl">💬</span>
-          <span class="text-xs mt-1">生活圈</span>
-        </router-link>
-        <router-link to="/profile" class="flex flex-col items-center text-gray-500">
-          <span class="text-2xl">👤</span>
-          <span class="text-xs mt-1">我的</span>
-        </router-link>
-      </div>
-    </nav>
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { productAPI, uploadAPI } from '@/api'
+import BottomNav from '@/components/BottomNav.vue'
 
 const products = ref([])
 const loading = ref(false)

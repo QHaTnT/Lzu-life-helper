@@ -9,7 +9,7 @@ from app.utils.file_upload import save_multiple_files
 router = APIRouter()
 
 
-@router.post("")
+@router.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
     """上传文件（支持多文件），返回文件URL列表"""
     try:

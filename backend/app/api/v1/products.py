@@ -134,6 +134,12 @@ def add_product_comment(
     db.add(comment)
     db.commit()
     db.refresh(comment)
+    comment = (
+        db.query(ProductComment)
+        .options(joinedload(ProductComment.user))
+        .filter(ProductComment.id == comment.id)
+        .first()
+    )
     return ok(serialize_product_comment(comment), msg="留言成功")
 
 

@@ -57,17 +57,18 @@
       <div class="bg-white p-4 mb-4">
         <h3 class="font-semibold mb-3">卖家信息</h3>
         <div class="flex items-center">
-          <div class="w-12 h-12 bg-gray-300 rounded-full mr-3 flex items-center justify-center text-xl">
-            👤
+          <div class="w-12 h-12 bg-gray-300 rounded-full mr-3 flex items-center justify-center text-xl overflow-hidden">
+            <img v-if="product.seller?.avatar" :src="product.seller.avatar" class="w-full h-full object-cover" />
+            <span v-else>👤</span>
           </div>
           <div>
             <div class="font-semibold">{{ product.seller?.username || '用户' + product.seller_id }}</div>
-            <div class="text-sm text-gray-500">{{ product.seller?.student_id || '' }}</div>
+            <div v-if="product.seller?.phone" class="text-sm text-gray-500">📱 {{ product.seller.phone }}</div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white p-4 mb-4">
+      <div id="comment-section" class="bg-white p-4 mb-4">
         <h3 class="font-semibold mb-3">留言板 ({{ comments.length }})</h3>
 
         <div v-if="comments.length === 0" class="text-center text-gray-400 py-4">暂无留言</div>
@@ -112,13 +113,12 @@
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
       <div class="container mx-auto flex gap-3">
         <button
-          v-if="product?.seller?.phone"
           @click="contactSeller"
           class="flex-1 border border-lzu-blue text-lzu-blue py-3 rounded-lg font-medium"
         >
           联系卖家
         </button>
-        <button class="flex-1 bg-lzu-blue text-white py-3 rounded-lg font-medium">我想要</button>
+        <button @click="scrollToComment" class="flex-1 bg-lzu-blue text-white py-3 rounded-lg font-medium">我想要</button>
       </div>
     </div>
   </div>
@@ -170,7 +170,21 @@ const submitComment = async () => {
 const contactSeller = () => {
   if (product.value?.seller?.phone) {
     alert(`卖家联系方式：${product.value.seller.phone}`)
+  } else {
+    alert('卖家未设置联系方式，请在留言板留言')
+    scrollToComment()
   }
+}
+
+const scrollToComment = () => {
+  if (!isAuthenticated.value) {
+    alert('请先登录后再留言')
+    return
+  }
+  document.getElementById('comment-section')?.scrollIntoView({ behavior: 'smooth' })
+  setTimeout(() => {
+    document.querySelector('#comment-section input')?.focus()
+  }, 400)
 }
 
 const formatTime = (dateStr) => {
