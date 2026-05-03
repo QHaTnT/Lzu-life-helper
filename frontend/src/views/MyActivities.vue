@@ -94,12 +94,15 @@
         </div>
       </template>
     </div>
+
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { communityAPI } from '@/api'
+import BottomNav from '@/components/BottomNav.vue'
 
 const activeTab = ref('registered')
 const registeredActivities = ref([])

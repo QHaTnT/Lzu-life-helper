@@ -119,10 +119,41 @@
       +
     </button>
 
+    <!-- 发布类型选择 -->
     <div
-      v-if="showPublishDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      v-if="showPublishDialog && !publishType"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-end z-50"
       @click.self="showPublishDialog = false"
+    >
+      <div class="bg-white w-full rounded-t-2xl p-6">
+        <h2 class="text-lg font-bold mb-4 text-center">选择发布类型</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <button
+            @click="publishType = 'post'"
+            class="border-2 border-lzu-blue rounded-xl p-4 flex flex-col items-center gap-2"
+          >
+            <span class="text-3xl">💬</span>
+            <span class="font-semibold text-lzu-blue">发布动态</span>
+            <span class="text-xs text-gray-500">失物招领、吐槽、分享等</span>
+          </button>
+          <button
+            @click="publishType = 'activity'"
+            class="border-2 border-lzu-blue rounded-xl p-4 flex flex-col items-center gap-2"
+          >
+            <span class="text-3xl">🎉</span>
+            <span class="font-semibold text-lzu-blue">发布活动</span>
+            <span class="text-xs text-gray-500">校园活动、社团招募等</span>
+          </button>
+        </div>
+        <button @click="showPublishDialog = false" class="w-full mt-4 py-2 text-gray-500">取消</button>
+      </div>
+    </div>
+
+    <!-- 发布动态对话框 -->
+    <div
+      v-if="showPublishDialog && publishType === 'post'"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closePublishDialog"
     >
       <div class="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl font-bold mb-4">发布动态</h2>
@@ -145,6 +176,7 @@
             <option value="complaint">吐槽</option>
             <option value="activity">活动</option>
             <option value="sharing">分享</option>
+            <option value="qa">问答互助</option>
             <option value="other">其他</option>
           </select>
           <div>
@@ -180,7 +212,7 @@
           </div>
         </div>
         <div class="flex gap-3 mt-6">
-          <button @click="showPublishDialog = false" class="flex-1 border border-gray-300 py-2 rounded-lg">
+          <button @click="closePublishDialog" class="flex-1 border border-gray-300 py-2 rounded-lg">
             取消
           </button>
           <button
@@ -189,6 +221,79 @@
             class="flex-1 bg-lzu-blue text-white py-2 rounded-lg disabled:opacity-50"
           >
             {{ publishing ? '发布中...' : '发布' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 发布活动对话框 -->
+    <div
+      v-if="showPublishDialog && publishType === 'activity'"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closePublishDialog"
+    >
+      <div class="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4">发布活动</h2>
+        <div class="space-y-3">
+          <input
+            v-model="activityForm.title"
+            type="text"
+            placeholder="活动标题 *"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+          <textarea
+            v-model="activityForm.description"
+            placeholder="活动描述"
+            rows="4"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          ></textarea>
+          <input
+            v-model="activityForm.organizer"
+            type="text"
+            placeholder="主办方/社团（可选）"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+          <input
+            v-model="activityForm.location"
+            type="text"
+            placeholder="活动地点"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">开始时间 *</label>
+              <input
+                v-model="activityForm.start_time"
+                type="datetime-local"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 mb-1 block">结束时间</label>
+              <input
+                v-model="activityForm.end_time"
+                type="datetime-local"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+          </div>
+          <input
+            v-model.number="activityForm.max_participants"
+            type="number"
+            placeholder="最大参与人数（不填则不限）"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+          />
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button @click="closePublishDialog" class="flex-1 border border-gray-300 py-2 rounded-lg">
+            取消
+          </button>
+          <button
+            @click="handlePublishActivity"
+            :disabled="publishingActivity"
+            class="flex-1 bg-lzu-blue text-white py-2 rounded-lg disabled:opacity-50"
+          >
+            {{ publishingActivity ? '发布中...' : '发布活动' }}
           </button>
         </div>
       </div>
@@ -209,7 +314,9 @@ const posts = ref([])
 const loading = ref(false)
 const selectedCategory = ref('')
 const showPublishDialog = ref(false)
+const publishType = ref(null)
 const publishing = ref(false)
+const publishingActivity = ref(false)
 const postFileInput = ref(null)
 
 const expandedComments = reactive({})
@@ -222,6 +329,16 @@ const postForm = ref({
   content: '',
   category: '',
   images: [],
+})
+
+const activityForm = ref({
+  title: '',
+  description: '',
+  organizer: '',
+  location: '',
+  start_time: '',
+  end_time: '',
+  max_participants: null,
 })
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -317,14 +434,37 @@ const handlePublishPost = async () => {
   try {
     await communityAPI.createPost(postForm.value)
     alert('发布成功')
-    showPublishDialog.value = false
-    postForm.value = { title: '', content: '', category: '', images: [] }
+    closePublishDialog()
     fetchPosts()
   } catch (error) {
     alert(error.message || '发布失败')
   } finally {
     publishing.value = false
   }
+}
+
+const handlePublishActivity = async () => {
+  if (!activityForm.value.title || !activityForm.value.start_time) {
+    alert('请填写活动标题和开始时间')
+    return
+  }
+  publishingActivity.value = true
+  try {
+    await communityAPI.createActivity(activityForm.value)
+    alert('活动发布成功')
+    closePublishDialog()
+  } catch (error) {
+    alert(error.message || '发布失败')
+  } finally {
+    publishingActivity.value = false
+  }
+}
+
+const closePublishDialog = () => {
+  showPublishDialog.value = false
+  publishType.value = null
+  postForm.value = { title: '', content: '', category: '', images: [] }
+  activityForm.value = { title: '', description: '', organizer: '', location: '', start_time: '', end_time: '', max_participants: null }
 }
 
 const previewImage = (images, index) => {

@@ -45,12 +45,15 @@
         </div>
       </div>
     </div>
+
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { communityAPI } from '@/api'
+import BottomNav from '@/components/BottomNav.vue'
 
 const posts = ref([])
 const loading = ref(true)
@@ -60,6 +63,7 @@ const categories = [
   { label: '吐槽', value: 'complaint' },
   { label: '活动', value: 'activity' },
   { label: '分享', value: 'sharing' },
+  { label: '问答互助', value: 'qa' },
   { label: '其他', value: 'other' },
 ]
 

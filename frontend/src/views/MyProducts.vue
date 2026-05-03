@@ -47,12 +47,15 @@
         </div>
       </div>
     </div>
+
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { productAPI } from '@/api'
+import BottomNav from '@/components/BottomNav.vue'
 
 const products = ref([])
 const loading = ref(true)
