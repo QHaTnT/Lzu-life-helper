@@ -22,7 +22,7 @@ echo [1/2] 检查 Python...
 
 where python >nul 2>&1
 if %errorlevel% equ 0 (
-    echo ✓ 系统已安装 Python
+    for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo ✓ 系统已安装 %%i
     set PYTHON=python
     goto :check_node
 )
@@ -36,42 +36,44 @@ if exist "%PYTHON_EMBEDDED%\python.exe" (
 echo.
 echo ✗ 未检测到 Python 环境
 echo.
-echo 请选择安装方式：
-echo   [1] 自动下载并安装 Python 3.11（推荐，约 30MB）
-echo   [2] 手动安装后重新运行本脚本
-echo   [3] 退出
+echo 正在自动下载 Python 3.11 安装包（约 25MB）...
+echo 请稍候，下载速度取决于网络状况...
 echo.
-choice /c 123 /n /m "请输入选项 (1/2/3): "
 
-if errorlevel 3 exit /b
-if errorlevel 2 (
-    echo.
-    echo 请访问 https://www.python.org/downloads/ 下载并安装 Python
-    echo 安装时务必勾选 "Add Python to PATH"
-    pause
-    exit /b
-)
-
-echo.
-echo 正在下载 Python 嵌入式版本...
-mkdir "%PYTHON_EMBEDDED%" 2>nul
-powershell -Command "& {Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip' -OutFile '%PROJECT%runtime\python.zip'}"
+mkdir "%PROJECT%runtime" 2>nul
+powershell -Command "& { $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile '%PROJECT%runtime\python_installer.exe' }"
 if errorlevel 1 (
-    echo 下载失败，请检查网络连接或手动安装 Python
+    echo.
+    echo 下载失败！请手动安装 Python：
+    echo   1. 访问 https://www.python.org/downloads/
+    echo   2. 下载并安装 Python 3.11
+    echo   3. 安装时务必勾选 "Add Python to PATH"
+    echo   4. 安装完成后重新运行本脚本
     pause
     exit /b 1
 )
 
-echo 正在解压...
-powershell -Command "& {Expand-Archive -Path '%PROJECT%runtime\python.zip' -DestinationPath '%PYTHON_EMBEDDED%' -Force}"
-del "%PROJECT%runtime\python.zip"
+echo 正在安装 Python（静默安装，无需操作）...
+"%PROJECT%runtime\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_doc=0
+if errorlevel 1 (
+    echo.
+    echo 静默安装失败，正在尝试手动安装模式...
+    "%PROJECT%runtime\python_installer.exe"
+)
+del "%PROJECT%runtime\python_installer.exe" 2>nul
 
-REM 配置 pip
-echo 正在配置 pip...
-powershell -Command "& {Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%PYTHON_EMBEDDED%\get-pip.py'}"
-"%PYTHON_EMBEDDED%\python.exe" "%PYTHON_EMBEDDED%\get-pip.py"
+REM 刷新 PATH
+call refreshenv 2>nul
+set "PATH=%LOCALAPPDATA%\Programs\Python\Python311;%LOCALAPPDATA%\Programs\Python\Python311\Scripts;%PATH%"
 
-set PYTHON=%PYTHON_EMBEDDED%\python.exe
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo Python 安装后仍未找到，请重启本脚本或手动安装。
+    pause
+    exit /b 1
+)
+set PYTHON=python
 echo ✓ Python 安装完成
 
 :check_node
@@ -83,54 +85,45 @@ echo [2/2] 检查 Node.js...
 
 where node >nul 2>&1
 if %errorlevel% equ 0 (
-    echo ✓ 系统已安装 Node.js
-    set NODE=node
+    for /f "tokens=*" %%i in ('node --version 2^>^&1') do echo ✓ 系统已安装 Node.js %%i
     set NPM=npm
     goto :install_deps
 )
 
 if exist "%NODE_EMBEDDED%\node.exe" (
     echo ✓ 使用内置 Node.js
-    set NODE=%NODE_EMBEDDED%\node.exe
-    set NPM=%NODE_EMBEDDED%\npm.cmd
+    set "PATH=%NODE_EMBEDDED%;%PATH%"
+    set NPM=npm
     goto :install_deps
 )
 
 echo.
 echo ✗ 未检测到 Node.js 环境
 echo.
-echo 请选择安装方式：
-echo   [1] 自动下载并安装 Node.js 20 LTS（推荐，约 30MB）
-echo   [2] 手动安装后重新运行本脚本
-echo   [3] 退出
+echo 正在自动下载 Node.js 20 LTS 便携版（约 30MB）...
+echo 请稍候，下载速度取决于网络状况...
 echo.
-choice /c 123 /n /m "请输入选项 (1/2/3): "
 
-if errorlevel 3 exit /b
-if errorlevel 2 (
-    echo.
-    echo 请访问 https://nodejs.org/ 下载并安装 Node.js LTS 版本
-    pause
-    exit /b
-)
-
-echo.
-echo 正在下载 Node.js 便携版...
-mkdir "%NODE_EMBEDDED%" 2>nul
-powershell -Command "& {Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.12.2/node-v20.12.2-win-x64.zip' -OutFile '%PROJECT%runtime\node.zip'}"
+mkdir "%PROJECT%runtime" 2>nul
+powershell -Command "& { $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.12.2/node-v20.12.2-win-x64.zip' -OutFile '%PROJECT%runtime\node.zip' }"
 if errorlevel 1 (
-    echo 下载失败，请检查网络连接或手动安装 Node.js
+    echo.
+    echo 下载失败！请手动安装 Node.js：
+    echo   1. 访问 https://nodejs.org/
+    echo   2. 下载并安装 Node.js LTS 版本
+    echo   3. 安装完成后重新运行本脚本
     pause
     exit /b 1
 )
 
-echo 正在解压...
-powershell -Command "& {Expand-Archive -Path '%PROJECT%runtime\node.zip' -DestinationPath '%PROJECT%runtime' -Force}"
-move "%PROJECT%runtime\node-v20.12.2-win-x64" "%NODE_EMBEDDED%"
-del "%PROJECT%runtime\node.zip"
+echo 正在解压 Node.js...
+powershell -Command "& { $ProgressPreference='SilentlyContinue'; Expand-Archive -Path '%PROJECT%runtime\node.zip' -DestinationPath '%PROJECT%runtime\node_tmp' -Force }"
+for /d %%i in ("%PROJECT%runtime\node_tmp\node-*") do move "%%i" "%NODE_EMBEDDED%" >nul
+rmdir "%PROJECT%runtime\node_tmp" 2>nul
+del "%PROJECT%runtime\node.zip" 2>nul
 
-set NODE=%NODE_EMBEDDED%\node.exe
-set NPM=%NODE_EMBEDDED%\npm.cmd
+set "PATH=%NODE_EMBEDDED%;%PATH%"
+set NPM=npm
 echo ✓ Node.js 安装完成
 
 :install_deps
@@ -139,20 +132,21 @@ REM 安装依赖
 REM ============================================================
 echo.
 echo ========================================
-echo   正在安装项目依赖...
+echo   正在安装项目依赖（首次约需 3-5 分钟）
 echo ========================================
 echo.
 
 echo [1/2] 安装后端依赖...
 cd /d "%PROJECT%backend"
-if not exist "%PROJECT%backend\.deps_installed" (
-    "%PYTHON%" -m pip install -r requirements.txt --quiet
+if not exist ".deps_installed" (
+    "%PYTHON%" -m pip install -r requirements.txt -q --no-warn-script-location
     if errorlevel 1 (
-        echo 后端依赖安装失败
+        echo.
+        echo 后端依赖安装失败，请检查网络连接后重试。
         pause
         exit /b 1
     )
-    echo. > .deps_installed
+    echo installed > .deps_installed
     echo ✓ 后端依赖安装完成
 ) else (
     echo ✓ 后端依赖已安装（跳过）
@@ -161,10 +155,11 @@ if not exist "%PROJECT%backend\.deps_installed" (
 echo.
 echo [2/2] 安装前端依赖...
 cd /d "%PROJECT%frontend"
-if not exist "%PROJECT%frontend\node_modules" (
-    call "%NPM%" install
+if not exist "node_modules" (
+    call %NPM% install --loglevel=error
     if errorlevel 1 (
-        echo 前端依赖安装失败
+        echo.
+        echo 前端依赖安装失败，请检查网络连接后重试。
         pause
         exit /b 1
     )
@@ -194,32 +189,44 @@ cd /d "%PROJECT%backend"
 set PYTHONIOENCODING=utf-8
 "%PYTHON%" -X utf8 init_db.py
 if errorlevel 1 (
-    echo 数据库初始化失败
+    echo 数据库初始化失败，请查看上方错误信息。
     pause
     exit /b 1
 )
 
 REM 启动后端
-echo [2/3] 启动后端...
+echo [2/3] 启动后端服务...
 start "兰大助手-后端 :8000" cmd /k "chcp 65001 >nul && cd /d %PROJECT%backend && set PYTHONIOENCODING=utf-8 && %PYTHON% -X utf8 -m uvicorn app.main:app --reload --port 8000"
 
-timeout /t 3 /nobreak >nul
+REM 等待后端就绪
+echo 等待后端启动...
+timeout /t 4 /nobreak >nul
 
 REM 启动前端
-echo [3/3] 启动前端...
+echo [3/3] 启动前端服务...
 start "兰大助手-前端 :5173" cmd /k "cd /d %PROJECT%frontend && %NPM% run dev"
+
+REM 等待前端编译
+echo 等待前端编译（约 10 秒）...
+timeout /t 10 /nobreak >nul
+
+REM 自动打开浏览器
+echo 正在打开浏览器...
+start "" "http://localhost:5173"
 
 echo.
 echo ========================================
-echo  ✓ 启动完成！
+echo  ✓ 启动完成！浏览器已自动打开
 echo.
-echo  前端: http://localhost:5173
-echo  后端: http://localhost:8000
-echo  文档: http://localhost:8000/docs
+echo  如浏览器未打开，请手动访问：
+echo  http://localhost:5173
 echo.
-echo  测试账号: zhangsan / 123456
+echo  测试账号：zhangsan  密码：123456
 echo ========================================
 echo.
-echo 关闭对应窗口即可停止服务。
-echo 下次启动可直接双击 start-local.bat（更快）
+echo 使用说明：
+echo  - 不要关闭"兰大助手-后端"和"兰大助手-前端"两个黑色窗口
+echo  - 关闭这两个窗口即可停止服务
+echo  - 下次启动直接双击 start-local.bat（更快）
+echo.
 pause
