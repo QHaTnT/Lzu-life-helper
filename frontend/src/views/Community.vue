@@ -230,8 +230,9 @@ const categories = [
   { label: '全部', value: '' },
   { label: '失物招领', value: 'lost_found' },
   { label: '吐槽', value: 'complaint' },
-  { label: '活动', value: 'activity' },
+  { label: '问答互助', value: 'qa' },
   { label: '分享', value: 'sharing' },
+  { label: '活动', value: 'activity' },
   { label: '其他', value: 'other' },
 ]
 

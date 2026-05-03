@@ -6,9 +6,10 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models import Venue, VenueTimeSlot, Booking, BookingStatus
-from app.core.redis import redis_client
 from app.core.config import settings
-import json
+
+
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
 
 class VenueService:
@@ -47,35 +48,33 @@ class VenueService:
         db: Session, user_id: int, time_slot_id: int
     ) -> Optional[Booking]:
         """
-        使用Redis分布式锁创建预约
-        防止超卖问题
+        创建预约（有 Redis 时用分布式锁，无 Redis 时用数据库事务保证并发安全）
         """
+        from app.core.redis import redis_client
+
         lock_key = f"booking_lock:{time_slot_id}"
         lock_value = f"{user_id}:{datetime.now().timestamp()}"
         lock_timeout = settings.VENUE_BOOKING_LOCK_TIMEOUT
+        use_redis = redis_client is not None
 
-        # 尝试获取锁
-        lock_acquired = redis_client.set(
-            lock_key, lock_value, nx=True, ex=lock_timeout
-        )
-
-        if not lock_acquired:
-            return None
+        if use_redis:
+            lock_acquired = redis_client.set(lock_key, lock_value, nx=True, ex=lock_timeout)
+            if not lock_acquired:
+                return None
 
         try:
-            # 查询时段信息
-            time_slot = db.query(VenueTimeSlot).filter(
-                VenueTimeSlot.id == time_slot_id
-            ).first()
+            # with_for_update 在 MySQL/PostgreSQL 下加行锁；SQLite 靠事务串行化
+            q = db.query(VenueTimeSlot).filter(VenueTimeSlot.id == time_slot_id)
+            if not _is_sqlite:
+                q = q.with_for_update()
+            time_slot = q.first()
 
             if not time_slot:
                 return None
 
-            # 检查是否还有空位
             if time_slot.booked_count >= time_slot.capacity:
                 return None
 
-            # 检查用户是否已预约该时段
             existing_booking = (
                 db.query(Booking)
                 .filter(
@@ -91,7 +90,6 @@ class VenueService:
             if existing_booking:
                 return None
 
-            # 创建预约
             booking = Booking(
                 user_id=user_id,
                 time_slot_id=time_slot_id,
@@ -99,21 +97,17 @@ class VenueService:
             )
             db.add(booking)
 
-            # 更新已预约数量
             time_slot.booked_count += 1
-
-            # 如果满员，标记为不可用
             if time_slot.booked_count >= time_slot.capacity:
                 time_slot.is_available = False
 
             db.commit()
             db.refresh(booking)
-
             return booking
 
         finally:
-            # 释放锁
-            redis_client.delete(lock_key)
+            if use_redis:
+                redis_client.delete(lock_key)
 
     @staticmethod
     def cancel_booking(db: Session, booking_id: int, user_id: int) -> bool:

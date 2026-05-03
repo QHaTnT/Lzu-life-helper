@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
     # 数据库配置
-    DATABASE_URL: str = "mysql+pymysql://root:password@localhost:3306/lzu_helper"
+    DATABASE_URL: str = "sqlite:///./lzu_helper.db"
     DATABASE_ECHO: bool = False
 
     # Redis配置

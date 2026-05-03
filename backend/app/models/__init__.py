@@ -67,10 +67,12 @@ class User(Base):
 # 二手市场
 # ============================================================
 class ProductCategory(str, enum.Enum):
-    """商品分类（按 SRS 收敛为：电子/书籍/日用 + 其他）"""
+    """商品分类"""
     ELECTRONICS = "electronics"
     BOOKS = "books"
     DAILY = "daily"
+    SPORTS = "sports"
+    CLOTHING = "clothing"
     OTHER = "other"
 
 
@@ -127,6 +129,7 @@ class VenueType(str, enum.Enum):
     TABLE_TENNIS = "table_tennis"
     SWIMMING = "swimming"
     GYM = "gym"
+    CLASSROOM = "classroom"
 
 
 class Venue(Base):
@@ -229,6 +232,7 @@ class PostCategory(str, enum.Enum):
     COMPLAINT = "complaint"
     ACTIVITY = "activity"
     SHARING = "sharing"
+    QA = "qa"
     OTHER = "other"
 
 

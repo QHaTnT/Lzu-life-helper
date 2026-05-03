@@ -110,6 +110,8 @@
             <option value="electronics">电子产品</option>
             <option value="books">图书</option>
             <option value="daily">日用品</option>
+            <option value="sports">运动</option>
+            <option value="clothing">服装</option>
             <option value="other">其他</option>
           </select>
           <div>
@@ -194,6 +196,8 @@ const categories = [
   { label: '电子产品', value: 'electronics' },
   { label: '图书', value: 'books' },
   { label: '日用品', value: 'daily' },
+  { label: '运动', value: 'sports' },
+  { label: '服装', value: 'clothing' },
   { label: '其他', value: 'other' },
 ]
 
