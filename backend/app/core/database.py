@@ -1,27 +1,17 @@
 """
-数据库连接配置
+数据库连接配置（MySQL）
 """
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
-# SQLite 不支持连接池参数，MySQL/PostgreSQL 才需要
-_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
-
-if _is_sqlite:
-    engine = create_engine(
-        settings.DATABASE_URL,
-        echo=settings.DATABASE_ECHO,
-        connect_args={"check_same_thread": False},  # SQLite 多线程支持
-    )
-else:
-    engine = create_engine(
-        settings.DATABASE_URL,
-        echo=settings.DATABASE_ECHO,
-        pool_pre_ping=True,
-        pool_recycle=3600,
-    )
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=settings.DATABASE_ECHO,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
 
 # 创建会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

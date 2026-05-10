@@ -9,9 +9,6 @@ from app.models import Venue, VenueTimeSlot, Booking, BookingStatus
 from app.core.config import settings
 
 
-_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
-
-
 class VenueService:
     """场馆预约服务"""
 
@@ -47,27 +44,26 @@ class VenueService:
     def create_booking_with_lock(
         db: Session, user_id: int, time_slot_id: int
     ) -> Optional[Booking]:
-        """
-        创建预约（有 Redis 时用分布式锁，无 Redis 时用数据库事务保证并发安全）
-        """
+        """创建预约（Redis 分布式锁 + MySQL 行锁双重保障）"""
         from app.core.redis import redis_client
 
         lock_key = f"booking_lock:{time_slot_id}"
         lock_value = f"{user_id}:{datetime.now().timestamp()}"
         lock_timeout = settings.VENUE_BOOKING_LOCK_TIMEOUT
-        use_redis = redis_client is not None
 
-        if use_redis:
-            lock_acquired = redis_client.set(lock_key, lock_value, nx=True, ex=lock_timeout)
-            if not lock_acquired:
-                return None
+        # Redis 分布式锁，防止并发请求同时进入
+        lock_acquired = redis_client.set(lock_key, lock_value, nx=True, ex=lock_timeout)
+        if not lock_acquired:
+            return None
 
         try:
-            # with_for_update 在 MySQL/PostgreSQL 下加行锁；SQLite 靠事务串行化
-            q = db.query(VenueTimeSlot).filter(VenueTimeSlot.id == time_slot_id)
-            if not _is_sqlite:
-                q = q.with_for_update()
-            time_slot = q.first()
+            # MySQL SELECT ... FOR UPDATE 行锁，防止并发写
+            time_slot = (
+                db.query(VenueTimeSlot)
+                .filter(VenueTimeSlot.id == time_slot_id)
+                .with_for_update()
+                .first()
+            )
 
             if not time_slot:
                 return None
@@ -106,8 +102,7 @@ class VenueService:
             return booking
 
         finally:
-            if use_redis:
-                redis_client.delete(lock_key)
+            redis_client.delete(lock_key)
 
     @staticmethod
     def cancel_booking(db: Session, booking_id: int, user_id: int) -> bool:

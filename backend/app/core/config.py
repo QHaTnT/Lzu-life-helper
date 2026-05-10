@@ -14,12 +14,12 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "your-secret-key-change-in-production"
 
-    # 数据库配置
-    DATABASE_URL: str = "sqlite:///./lzu_helper.db"
+    # 数据库配置（Docker 环境）
+    DATABASE_URL: str = "mysql+pymysql://lzu_user:lzu_password@mysql:3306/lzu_helper"
     DATABASE_ECHO: bool = False
 
-    # Redis配置
-    REDIS_HOST: str = "localhost"
+    # Redis配置（Docker 环境）
+    REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     REDIS_PASSWORD: str = ""
