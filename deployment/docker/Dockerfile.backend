@@ -2,6 +2,10 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# 配置 Debian 国内镜像源（清华）
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null || true
+
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
