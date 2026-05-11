@@ -1,48 +1,74 @@
 """
 FastAPI 主应用入口。
 
-这个文件只负责“应用组装”，不承载具体业务逻辑。
-换句话说，它像是整个后端的总装配车间：把配置、数据库、路由、静态资源和异常处理统一拼起来。
+这个文件是整个后端服务的启动文件，负责把所有组件组装在一起。
+它的职责不包含具体的业务逻辑（比如查询数据库、处理用户请求），
+它只负责三件事：
+  1. 创建 FastAPI 应用实例（告诉框架"我要启动一个 Web 服务"）。
+  2. 注册中间件、路由、异常处理器（告诉框架"收到请求后该怎么处理"）。
+  3. 在启动时做一些一次性初始化工作（比如建表、确保目录存在）。
 """
 
-# 导入 FastAPI 应用类，用来创建真正的 Web 应用对象。
+# ==================== 导入部分 ====================
+
+# 导入 FastAPI 类。这是 FastAPI 框架的核心类，
+# 创建它的实例就等于创建了一个 Web 应用，后续所有路由、中间件都挂在这个实例上。
 from fastapi import FastAPI
 
-# 导入 CORS 中间件，用来控制浏览器跨域访问策略。
+# 导入 CORSMiddleware（跨域中间件）。
+# 浏览器的同源策略（Same-Origin Policy）会阻止网页向不同域名/端口发请求。
+# 前端通常运行在 localhost:3000 或 localhost:5173，后端运行在 localhost:8000，
+# 两边端口不同，浏览器会视为"跨域"，如果没有这个中间件，前端的请求会被浏览器拦截。
 from fastapi.middleware.cors import CORSMiddleware
 
-# 导入静态文件挂载工具，用来把某个目录暴露成可访问的 URL。
+# 导入 StaticFiles 类，它可以将服务器上的某个目录"挂载"成 HTTP 可访问的静态资源。
+# 比如用户上传了头像图片保存在 ./uploads 目录下，
+# 挂载后浏览器通过 /uploads/xxx.jpg 就能直接访问到这个文件。
 from fastapi.staticfiles import StaticFiles
 
-# 导入项目配置对象，所有可变的环境相关参数都从这里读取。
+# 导入自定义的配置对象。这个对象从 .env 文件或环境变量中读取所有配置参数，
+# 这样代码里不需要硬编码数据库密码、密钥等敏感信息。
 from app.core.config import settings
 
-# 导入数据库引擎和模型基类，后面会在启动时做一次建表。
+# 导入 SQLAlchemy 的 engine（数据库引擎）和 Base（ORM 模型基类）。
+# engine 负责与 MySQL 数据库建立连接；
+# Base 是所有 ORM 模型类的父类，通过它可以自动根据模型定义创建数据库表。
 from app.core.database import engine, Base
 
-# 导入统一响应函数和异常处理注册函数，保证接口返回格式一致。
+# 导入 ok 函数和 add_exception_handlers 函数。
+# ok() 用于构造统一格式的成功响应：{"code": 0, "msg": "success", "data": ...}。
+# add_exception_handlers() 用于注册全局异常处理器，把各种错误统一转成相同格式返回给前端。
 from app.core.response import ok, add_exception_handlers
 
-# 导入 v1 版本的路由聚合器，所有接口最终都会挂载到这个入口上。
+# 导入 v1 版本的 API 路由聚合器。
+# 在 app/api/v1/__init__.py 中，所有子路由（用户、文章、预约等）
+# 都会被注册到 api_router 上，这里一次性挂载到主应用中。
 from app.api.v1 import api_router
 
-# 导入标准库里的 os，用来创建目录。
+# 导入 Python 标准库的 os 模块，主要用 os.makedirs 来创建目录。
 import os
 
 
-# 这一行是在应用启动阶段执行的数据库初始化动作。
-# Base.metadata 代表所有 ORM 模型对应的表结构元数据。
-# create_all(bind=engine) 的意思是：根据模型定义检查数据库里是否已有这些表，如果没有就创建。
-# 这样做对开发环境比较方便，但它不是迁移工具，所以复杂的生产环境通常还会配合 Alembic。
+# ==================== 数据库初始化 ====================
+
+# 在应用启动时执行一次数据库建表操作。
+# Base.metadata 包含了所有继承自 Base 的 ORM 模型对应的表结构信息（列名、类型、约束等）。
+# create_all() 会对比 metadata 中的表定义和数据库中实际存在的表，
+# 如果数据库里缺少某些表，就自动创建；已存在的表不会被修改或删除。
+# bind=engine 指定使用哪个数据库连接来执行建表。
+# 注意：这只适合开发环境快速建表，生产环境应该用 Alembic 做数据库迁移，
+# 因为 create_all 不支持修改已有表结构（比如加列、改类型）。
 Base.metadata.create_all(bind=engine)
 
 
-# 创建 FastAPI 应用实例。
-# title 会显示在接口文档页面上，通常用于标识项目名称。
-# version 用来说明当前 API 版本，方便前端和运维确认服务版本。
-# description 是文档说明文字，会出现在 Swagger/OpenAPI 页面里。
-# docs_url 指定 Swagger 文档路径。
-# redoc_url 指定 ReDoc 文档路径。
+# ==================== 创建应用实例 ====================
+
+# 创建 FastAPI 应用实例，这个实例是整个后端服务的核心对象。
+# title：显示在 Swagger 文档页面顶部的项目名称。
+# version：API 版本号，方便前端和运维确认当前服务版本。
+# description：API 的文字说明，出现在 Swagger 文档页面中。
+# docs_url="/docs"：指定 Swagger UI 的访问路径，访问 /docs 就能看到所有接口文档。
+# redoc_url="/redoc"：指定 ReDoc 文档的访问路径，ReDoc 是另一种风格的 API 文档。
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -52,9 +78,17 @@ app = FastAPI(
 )
 
 
-# 给应用添加 CORS 中间件。
-# 跨域的本质是浏览器安全策略限制，不是后端接口本身不能访问。
-# 这里把允许访问的前端来源、是否允许携带凭证、允许的方法和请求头都交给配置控制。
+# ==================== 中间件配置 ====================
+
+# 添加 CORS（跨域资源共享）中间件。
+# 浏览器在检测到跨域请求时，会先发送一个 OPTIONS "预检请求"（preflight request），
+# 如果服务端不返回允许跨域的响应头，浏览器就会阻止后续请求。
+# allow_origins：指定哪些域名可以跨域访问。这里配置了 localhost:3000（前端开发服务器）
+#   和 localhost:5173（Vite 开发服务器），说明开发时前后端是分开运行的。
+# allow_credentials=True：允许浏览器在跨域请求中携带 Cookie 和 Authorization 头。
+#   如果设为 false，前端即使发了 Token，后端也收不到。
+# allow_methods=["*"]：允许所有 HTTP 方法（GET、POST、PUT、DELETE 等）。
+# allow_headers=["*"]：允许所有自定义请求头（比如 Authorization、Content-Type）。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -64,68 +98,100 @@ app.add_middleware(
 )
 
 
-# 确保上传目录存在。
-# exist_ok=True 表示：如果目录已经存在，不要报错，直接继续。
-# 这样做的目的，是避免后面的文件上传保存逻辑和静态目录挂载因为目录不存在而失败。
+# ==================== 静态资源目录 ====================
+
+# 创建上传文件的存储目录。
+# settings.UPLOAD_DIR 默认值是 "./uploads"，即当前工作目录下的 uploads 文件夹。
+# exist_ok=True 表示如果目录已经存在，不抛出异常，直接跳过。
+# 这行代码的目的是确保目录一定存在，避免后续文件上传或静态资源挂载时因目录缺失而报错。
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 
-# 把上传目录挂载成静态文件服务。
-# 这样浏览器访问 /uploads/xxx 时，实际上会读取 settings.UPLOAD_DIR 里的对应文件。
-# name="uploads" 是这个静态挂载点的内部名称，主要用于调试和路由识别。
+# 将 uploads 目录挂载为静态文件服务。
+# 挂载后，对 /uploads/xxx.jpg 的 HTTP 请求会被自动映射到 ./uploads/xxx.jpg 文件。
+# name="uploads" 是给这个挂载点取的内部名称，主要用于调试日志和路由识别。
+# 这样前端可以直接通过 URL 访问用户上传的图片，而不需要专门写一个下载接口。
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
-# 挂载 API 路由。
-# prefix="/api/v1" 表示：路由文件里定义的路径，都会自动加上这个前缀。
-# 这么做的好处是版本管理清晰，后续如果升级到 v2，可以并存两个版本的 API。
+# ==================== 路由挂载 ====================
+
+# 将 v1 版本的 API 路由注册到主应用上。
+# prefix="/api/v1" 表示所有子路由都会自动加上 /api/v1 前缀。
+# 例如，用户路由文件里定义了 /register，实际访问路径就变成 /api/v1/register。
+# 这样做的好处是版本管理清晰：未来升级到 v2 时，可以同时挂载 v1 和 v2 的路由，
+# 两套 API 共存，前端可以逐步迁移。
 app.include_router(api_router, prefix="/api/v1")
 
 
+# ==================== 异常处理 ====================
+
 # 注册全局异常处理器。
-# 它的作用是：把不同类型的异常转换成统一格式的响应，避免前端收到杂乱的错误结构。
-# 统一错误结构和统一成功响应结构配合使用，前端处理会更稳定。
+# 当路由处理函数抛出异常时（比如数据库查询失败、参数校验不通过、未捕获的运行时错误），
+# 这些处理器会把异常信息转换成统一格式的 JSON 响应返回给前端。
+# 统一格式是 {"code": xxx, "msg": "具体错误信息", "data": null}，
+# 这样前端不需要针对不同类型的错误做不同的解析逻辑。
 add_exception_handlers(app)
 
 
-# 下面这个装饰器表示：当有人访问根路径 / 时，调用 root 函数。
+# ==================== 根路由 ====================
+
+# 定义根路由 "/" 的处理函数。
+# 当用户访问 http://localhost:8000/ 时，会调用这个函数。
+# @app.get("/") 表示只处理 GET 请求。
 @app.get("/")
 def root():
-    # 这里返回的是服务最基础的信息。
-    # 它通常用于快速确认服务是否在线，以及版本号、文档地址是否正确。
+    # 返回服务的基本信息，用于快速确认服务是否正常运行。
+    # 使用 ok() 函数包装，确保返回格式与所有其他接口一致。
     return ok(
         {
-            # 当前项目名称，来自配置文件。
+            # APP_NAME：项目名称，来自配置文件中的设置。
             "name": settings.APP_NAME,
-            # 当前项目版本号，来自配置文件。
+            # APP_VERSION：项目版本号，方便排查问题时确认服务版本。
             "version": settings.APP_VERSION,
-            # 文档地址写死为 /docs，是因为上面 FastAPI 已经把 Swagger 文档挂在这个路径下。
+            # docs 指向 Swagger 文档路径，方便用户快速找到接口文档。
             "docs": "/docs",
         },
-        # msg 是统一响应里的提示信息字段，用来告诉调用方这个接口返回的含义。
+        # msg 字段是统一响应结构中的提示信息，这里用中文说明接口含义。
         msg="欢迎使用兰州大学生活助手 API",
     )
 
 
-# 这个接口是健康检查接口。
-# 运维、容器编排、负载均衡器经常会请求它，确认服务是否存活。
+# ==================== 健康检查接口 ====================
+
+# 定义健康检查接口 "/health"。
+# 这个接口不承载任何业务逻辑，它存在的唯一目的是让外部系统确认服务是否存活。
+# 使用场景：
+#   - Docker 容器的 HEALTHCHECK 指令会定期请求这个接口。
+#   - Kubernetes 的存活探针（livenessProbe）和就绪探针（readinessProbe）会探测这个接口。
+#   - 负载均衡器（如 Nginx）会用它来判断后端实例是否健康。
 @app.get("/health")
 def health_check():
-    # 这里返回一个非常简单的状态值，表示服务运行正常。
+    # 返回 {"code": 0, "msg": "success", "data": {"status": "healthy"}}，
+    # 表示服务正常运行。
     return ok({"status": "healthy"})
 
 
-# 下面这个判断表示：只有当本文件被直接执行时，才启动 uvicorn。
-# 如果是通过其他模块 import 进来的，这段代码不会运行。
+# ==================== 本地开发启动 ====================
+
+# __name__ 是 Python 的内置变量。当这个文件被直接运行时（python main.py），
+# __name__ 的值是 "__main__"；如果是被其他文件 import 的，值是 "app.main"。
+# 这个判断确保只有直接运行此文件时才启动服务，被 import 时不会重复启动。
 if __name__ == "__main__":
-    # 导入 uvicorn，一个常用的 ASGI 服务器，用来真正承载 FastAPI 应用。
+    # 导入 uvicorn。uvicorn 是一个 ASGI 服务器，
+    # ASGI（Asynchronous Server Gateway Interface）是 Python 异步 Web 服务的标准接口，
+    # FastAPI 正是基于 ASGI 构建的，所以需要用 uvicorn 来运行它。
     import uvicorn
 
-    # 通过 uvicorn.run 启动服务。
-    # 第一个参数是 ASGI 应用的导入路径。
-    # host="0.0.0.0" 表示监听所有网卡，这样局域网或容器外部也能访问到服务。
-    # port=8000 表示监听 8000 端口。
-    # reload=settings.DEBUG 表示开发模式下可以自动重载代码，生产环境一般关闭。
+    # 启动服务：
+    #   "app.main:app"：告诉 uvicorn 去 app/main.py 文件中找名为 app 的对象（即 FastAPI 实例）。
+    #   host="0.0.0.0"：监听所有网络接口，不仅本机 localhost 能访问，
+    #     同一局域网内的其他设备（比如手机）也能访问。
+    #     如果只写 127.0.0.1，则只有本机能访问。
+    #   port=8000：监听 8000 端口，前端请求会发到这个端口。
+    #   reload=settings.DEBUG：开发模式下开启自动重载，
+    #     当代码发生修改时 uvicorn 会自动重启服务，不需要手动重启。
+    #     生产环境 DEBUG=False，关闭此功能以提高性能和稳定性。
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
