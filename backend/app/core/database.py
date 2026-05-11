@@ -41,7 +41,7 @@ engine = create_engine(
     # echo=settings.DATABASE_ECHO：是否打印 SQL 语句到终端。
     # True 时会看到类似 "SELECT * FROM users WHERE id=1" 的输出，方便调试。
     # False 时静默执行，适合生产环境。
-    settings.DATABASE_ECHO,
+    echo=settings.DATABASE_ECHO,
 
     # pool_pre_ping=True：开启连接池的"预检测"功能。
     # 数据库连接可能会因为网络波动、超时等原因断开，但连接池不知道。
