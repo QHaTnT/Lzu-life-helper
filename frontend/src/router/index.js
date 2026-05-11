@@ -120,6 +120,14 @@ const routes = [
     meta: { requiresAuth: true },
   },
 
+  // 我的预约页面（管理自己的场馆预约）
+  {
+    path: '/my-bookings',
+    name: 'MyBookings',
+    component: () => import('@/views/MyBookings.vue'),
+    meta: { requiresAuth: true },
+  },
+
   // 我的动态页面（管理自己发布的动态）
   {
     path: '/my-posts',

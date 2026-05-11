@@ -104,11 +104,11 @@
       <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <!-- 我的预约 -->
         <!--
-          @click="$router.push('/venue')": 点击跳转到场馆预约页面
+          @click="$router.push('/my-bookings')": 点击跳转到我的预约页面
           为什么用 push：保持浏览历史，用户可以点击返回
         -->
         <div
-          @click="$router.push('/venue')"
+          @click="$router.push('/my-bookings')"
           class="p-4 border-b border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-50"
         >
           <div class="flex items-center gap-3">
